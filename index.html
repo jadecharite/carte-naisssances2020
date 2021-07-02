@@ -1,0 +1,229 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <title>Kepler.gl embedded map</title>
+
+        <!--Uber Font-->
+        <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+        <!--MapBox css-->
+        <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css" rel="stylesheet">
+
+        <!-— facebook open graph tags -->
+        <meta property="og:url" content="http://kepler.gl/" />
+        <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+        <meta property="og:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+        <meta property="og:site_name" content="kepler.gl" />
+        <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+
+        <!-— twitter card tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@uber">
+        <meta name="twitter:creator" content="@uber">
+        <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+        <meta name="twitter:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+        <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+        <!-- Load React/Redux -->
+        <script src="https://unpkg.com/react@16.8.4/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16.8.4/umd/react-dom.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/redux@3.7.2/dist/redux.js" crossorigin></script>
+        <script src="https://unpkg.com/react-redux@7.1.3/dist/react-redux.min.js" crossorigin></script>
+        <script src="https://unpkg.com/styled-components@4.1.3/dist/styled-components.min.js" crossorigin></script>
+
+        <!-- Load Kepler.gl -->
+        <script src="https://unpkg.com/kepler.gl@2.5.1/umd/keplergl.min.js" crossorigin></script>
+
+        <style type="text/css">
+          body {margin: 0; padding: 0; overflow: hidden;}
+        </style>
+
+        <!--MapBox token-->
+        <script>
+          /**
+           * Provide your MapBox Token
+           **/
+          const MAPBOX_TOKEN = 'pk.eyJ1IjoidWJlcmRhdGEiLCJhIjoiY2p5aHB5bzEzMDI3MjNucWx4dmhvbW5wYyJ9.ZjLMWjog4imdrZhtheCOtA';
+          const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+        </script>
+
+        <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-64694404-19', {
+            'storage': 'none',
+            'clientId': localStorage.getItem('ga:clientId')
+          });
+          ga(function(tracker) {
+              localStorage.setItem('ga:clientId', tracker.get('clientId'));
+          });
+          ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+          ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+          ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+          ga('set', 'page', 'keplergl-html');
+          ga('send', 'pageview');
+        </script>
+      </head>
+      <body>
+        <!-- We will put our React component inside this div. -->
+        <div id="app">
+          <!-- Kepler.gl map will be placed here-->
+        </div>
+
+        <!-- Load our React component. -->
+        <script>
+          /* Validate Mapbox Token */
+          if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+            alert(WARNING_MESSAGE);
+          }
+
+          /** STORE **/
+          const reducers = (function createReducers(redux, keplerGl) {
+            return redux.combineReducers({
+              // mount keplerGl reducer
+              keplerGl: keplerGl.keplerGlReducer.initialState({
+                uiState: {
+                  readOnly: true,
+                  currentModal: null
+                }
+              })
+            });
+          }(Redux, KeplerGl));
+
+          const middleWares = (function createMiddlewares(keplerGl) {
+            return keplerGl.enhanceReduxMiddleware([
+              // Add other middlewares here
+            ]);
+          }(KeplerGl));
+
+          const enhancers = (function craeteEnhancers(redux, middles) {
+            return redux.applyMiddleware(...middles);
+          }(Redux, middleWares));
+
+          const store = (function createStore(redux, enhancers) {
+            const initialState = {};
+
+            return redux.createStore(
+              reducers,
+              initialState,
+              redux.compose(enhancers)
+            );
+          }(Redux, enhancers));
+          /** END STORE **/
+
+          /** COMPONENTS **/
+          var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+            var LogoSvg = function LogoSvg() {
+              return react.createElement(
+                "div",
+                { className: "logo-container", style: {position: 'fixed', zIndex: 10000, padding: '4px'} },
+                  react.createElement(
+                    "svg",
+                    {
+                      className: "kepler_gl__logo",
+                      width: "107px",
+                      height: "21px",
+                      viewBox: "0 0 124 24"
+                    },
+                    react.createElement(
+                      "g",
+                      { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+                      react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+                      react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill:"#1FBAD6", width: "12.1", height: "12.1" })
+                    ),
+                    react.createElement(
+                      "g",
+                      {},
+                      react.createElement("path", { fill:"#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+                    )
+                  )
+                );
+              };
+
+            return function App() {
+              var rootElm = react.useRef(null);
+              var _useState = react.useState({
+                width: window.innerWidth,
+                height: window.innerHeight
+              });
+              var windowDimension = _useState[0];
+              var setDimension = _useState[1];
+              react.useEffect(function sideEffect(){
+                function handleResize() {
+                  setDimension({width: window.innerWidth, height: window.innerHeight});
+                };
+                window.addEventListener('resize', handleResize);
+                return function() {window.removeEventListener('resize', handleResize);};
+              }, []);
+              return react.createElement(
+                'div',
+                {style: {position: 'absolute', left: 0, width: '100vw', height: '100vh'}},
+                LogoSvg(),
+                react.createElement(keplerGl.KeplerGl, {
+                  mapboxApiAccessToken: mapboxToken,
+                  id: "map",
+                  width: windowDimension.width,
+                  height: windowDimension.height
+                })
+              )
+            }
+          }(React, KeplerGl, MAPBOX_TOKEN));
+
+          const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+            return react.createElement(
+              reactRedux.Provider,
+              {store},
+              react.createElement(KeplerElement, null)
+            )
+          }(React, ReactRedux, KeplerElement));
+          /** END COMPONENTS **/
+
+          /** Render **/
+          (function render(react, reactDOM, app) {
+            reactDOM.render(app, document.getElementById('app'));
+          }(React, ReactDOM, app));
+        </script>
+        <!-- The next script will show how to interact directly with Kepler map store -->
+        <script>
+          /**
+           * Customize map.
+           * In the following section you can use the store object to dispatch Kepler.gl actions
+           * to add new data and customize behavior
+           */
+          (function customize(keplerGl, store) {
+            const datasets = [{"version":"v1","data":{"id":"ohz8ovhw","label":"adresse2020.geocoded (2).csv","color":[192,108,132],"allData":[["9 all�e Marcel Brossier",35136," St-Jacques-de-la-Lande",48.091695,-1.699593,1],["5 rue Claude Nougaro",35136," St-Jacques-de-la-Lande",48.077313,-1.719045,1],["9 all�e Nina Simone",35136," St-Jacques-de-la-Lande",48.076598,-1.718536,1],["8 all�e Nina Simone",35136," St-Jacques-de-la-Lande",48.076752,-1.718458,1],["48 mail L�on Blum",35136," St-Jacques-de-la-Lande",48.076008,-1.716072,1],["3 rue du Haut Bois",35136," St-Jacques-de-la-Lande",48.078241,-1.714301,1],["2 all�e Ren� Vilboux",35136," St-Jacques-de-la-Lande",48.091047,-1.697866,1],["62 avenue Roger Dodin",35136," St-Jacques-de-la-Lande",48.077406,-1.712916,1],["5 rue du Haut Bois",35136," St-Jacques-de-la-Lande",48.07825,-1.714641,1],["15 boulevard Eug�ne Pottier",35136," St-Jacques-de-la-Lande",48.067244,-1.718883,1],["4 rue Simone de Beauvoir",35136," St-Jacques-de-la-Lande",48.079802,-1.716354,1],["54 boulevard Jean Mermoz",35136," St-Jacques-de-la-Lande",48.095645,-1.696342,1],["49 rue jules Vall�s",35136," St-Jacques-de-la-Lande",48.063658,-1.726799,1],["256 A rue de Nantes",35136," St-Jacques-de-la-Lande",48.092334,-1.691732,1],["rue Fr�d�ric Benoist",35136," St-Jacques-de-la-Lande",48.086709,-1.709926,1],["68 rue de la Pilate",35136," St-Jacques-de-la-Lande",48.09209,-1.695289,1],["86 B rue du Temple de Blosne",35136," St-Jacques-de-la-Lande",48.087807,-1.699173,1],["3 r�sidence Gabriel P�ri",35136," St-Jacques-de-la-Lande",48.09287,-1.693041,1],["1 villa Gl�nan",35136," St-Jacques-de-la-Lande",48.078676,-1.716875,1],["1 rue Louis Rossel",35136," St-Jacques-de-la-Lande",48.063292,-1.720501,1],["18 all�e Henri Bergson",35136," St-Jacques-de-la-Lande",48.086851,-1.693663,1],["6 all�e Ren� Vilboux",35136," St-Jacques-de-la-Lande",48.090938,-1.697362,1],["20 rue Jean Mordant",35136," St-Jacques-de-la-Lande",48.064067,-1.720995,1],["20 rue Jean Mordant",35136," St-Jacques-de-la-Lande",48.064067,-1.720995,1],["4 villa C�zembre",35136," St-Jacques-de-la-Lande",48.079436,-1.717027,1],["8 all�e Catherine Sauvage",35136," St-Jacques-de-la-Lande",48.078003,-1.716724,1],["13 B rue de la Pilate",35136," St-Jacques-de-la-Lande",48.093696,-1.693117,1],["4 rue des Fr�res Lumi�re",35136," St-Jacques-de-la-Lande",48.093692,-1.705744,1],["4 all�e de la Cit� d'Ys",35136," St-Jacques-de-la-Lande",48.075463,-1.710413,1],["60 avenue Roger Dodin",35136," St-Jacques-de-la-Lande",48.078021,-1.712942,1],["3 rue Claude Nougaro",35136," St-Jacques-de-la-Lande",48.077339,-1.717589,1],["66 rue de la Pilate",35136," St-Jacques-de-la-Lande",48.092146,-1.695224,1],["26 rue du Manoir",35136," St-Jacques-de-la-Lande",48.065925,-1.717041,1],["56 rue des Lilas",35136," St-Jacques-de-la-Lande",48.093103,-1.700782,1],["1 rue Fernand Braudel",35136," St-Jacques-de-la-Lande",48.077259,-1.715388,1],["55 boulevard Jean Mermoz",35136," St-Jacques-de-la-Lande",48.095438,-1.694334,1],["11 all�e Ren� Vilboux",35136," St-Jacques-de-la-Lande",48.090874,-1.698063,1],["2 rue Fernand Braudel",35136," St-Jacques-de-la-Lande",48.07703,-1.715408,1],["53 rue Jules Vall�s",35136," St-Jacques-de-la-Lande",48.06318,-1.727899,1],["49 rue jules Vall�s",35136," St-Jacques-de-la-Lande",48.063658,-1.726799,1],["2 rue Andr� Malraux",35136," St-Jacques-de-la-Lande",48.080929,-1.7136,1],["4 rue des Fr�res Lumi�re",35136," St-Jacques-de-la-Lande",48.093692,-1.705744,1],["48 mail L�on Blum",35136," St-Jacques-de-la-Lande",48.076008,-1.716072,1],["6 r�sidence Gabriel P�ri",35136," St-Jacques-de-la-Lande",48.093435,-1.692656,1],["12 rue Claude Nougaro",35136," St-Jacques-de-la-Lande",48.077133,-1.718015,1],["39 rue Louise Michel",35136," St-Jacques-de-la-Lande",48.062394,-1.723574,1],["22 all�e du Cormier",35136," St-Jacques-de-la-Lande",48.087044,-1.697164,1],["5 rue du Haut Bois",35136," St-Jacques-de-la-Lande",48.07825,-1.714641,1],["1 cours Jean Jaur�s",35136," St-Jacques-de-la-Lande",48.086214,-1.710289,1],["5 rue Pierre Brossolette",35136," St-Jacques-de-la-Lande",48.091533,-1.692642,1],["6 all�e des P�trels",35136," St-Jacques-de-la-Lande",48.076615,-1.71645,1],["3 rue Marguerite Yourcenar",35136," St-Jacques-de-la-Lande",48.079471,-1.71332,1],["29 rue Hector des Mares",35136," St-Jacques-de-la-Lande",48.07985,-1.709891,1],["4 rue Andr� Malraux",35136," St-Jacques-de-la-Lande",48.080906,-1.712979,1],["1 all�e Aim�e Gautier",35136," St-Jacques-de-la-Lande",null,null,1],["12 mail L�on Blum",35136," St-Jacques-de-la-Lande",48.080621,-1.715695,1],["42 mail L�on Blum",35136," St-Jacques-de-la-Lande",48.077045,-1.715989,1],["38 mail L�on Blum",35136," St-Jacques-de-la-Lande",48.077637,-1.715986,1],["2 rue Marguerite Yourcenar",35136," St-Jacques-de-la-Lande",48.079692,-1.713171,1],["2 rue Fernand Braudel",35136," St-Jacques-de-la-Lande",48.07703,-1.715408,1],["51 rue Jules Vall�s",35136," St-Jacques-de-la-Lande",48.063418,-1.727351,1],["24 rue Pierre Brossolette",35136," St-Jacques-de-la-Lande",48.091736,-1.693648,1],["32 rue des 25 Fusill�s",35136," St-Jacques-de-la-Lande",48.090932,-1.695745,1],["13 rue Louis Guilloux",35136," St-Jacques-de-la-Lande",48.081135,-1.718787,1],["4 cours Jean Jaur�s",35136," St-Jacques-de-la-Lande",48.086294,-1.710893,1],["22 rue Joliot Curie",35136," St-Jacques-de-la-Lande",48.088027,-1.700916,1],["1 rue Fontaine Barenton",35136," St-Jacques-de-la-Lande",48.078909,-1.710666,1],["56 boulevard Jean Mermoz",35136," St-Jacques-de-la-Lande",48.095585,-1.696777,1],["71 bis rue de la Pilate",35136," St-Jacques-de-la-Lande",48.088638,-1.698632,1],["23 all�e de la Mercerais",35136," St-Jacques-de-la-Lande",48.06218,-1.726252,1],["46 avenue Roger Dodin",35136," St-Jacques-de-la-Lande",48.081458,-1.712355,1],["7 all�e des Pinsons",35136," St-Jacques-de-la-Lande",48.076453,-1.716634,1],["24 rue Simone de Beauvoir",35136," St-Jacques-de-la-Lande",48.079893,-1.718716,1],["2 impasse de la Sablonni�re",35136," St-Jacques-de-la-Lande",48.090837,-1.693615,1],["38 mail L�on Blum",35136," St-Jacques-de-la-Lande",48.077637,-1.715986,1],["3 rue Marguerite Yourcenar",35136," St-Jacques-de-la-Lande",48.079471,-1.71332,1],["56 boulevard Jean Mermoz",35136," St-Jacques-de-la-Lande",48.095585,-1.696777,1],["2 villa Dahouet",35136," St-Jacques-de-la-Lande",48.079549,-1.717445,1],["4 all�e Peyo",35136," St-Jacques-de-la-Lande",48.081257,-1.716947,1],["1 rue de la Pommerais",35136," St-Jacques-de-la-Lande",48.066392,-1.719604,1],["5 rue du Haut Bois",35136," St-Jacques-de-la-Lande",48.07825,-1.714641,1],["30 rue Ren� Cassin",35136," St-Jacques-de-la-Lande",48.061828,-1.725593,1],["10 mail L�on Blum",35136," St-Jacques-de-la-Lande",48.080765,-1.715671,1],["38 A rue du Temple de Blosne",35136," St-Jacques-de-la-Lande",48.090146,-1.697107,1],["11 rue Jean Pont",35136," St-Jacques-de-la-Lande",48.09076,-1.698756,1],["7 all�e Barbara",35136," St-Jacques-de-la-Lande",48.077918,-1.7191,1],["4 rue Andr� Malraux",35136," St-Jacques-de-la-Lande",48.080906,-1.712979,1],["20 rue Simone de Beauvoir",35136," St-Jacques-de-la-Lande",48.079879,-1.71836,1],["58 rue Charles de Gaulle",35136," St-Jacques-de-la-Lande",48.078183,-1.717755,1],["La Petite Perelle",35136," St-Jacques-de-la-Lande",48.076607,-1.7164,1],["7 villa Dahouet",35136," St-Jacques-de-la-Lande",48.079223,-1.717305,1],["12 all�e des Nymph�as",35136," St-Jacques-de-la-Lande",48.079306,-1.71875,1],["47 rue de la Pommerais",35136," St-Jacques-de-la-Lande",48.062161,-1.720744,1],["6 all�e Peyo",35136," St-Jacques-de-la-Lande",48.081299,-1.717571,1],["15 all�e des Pins",35136," St-Jacques-de-la-Lande",48.076574,-1.717626,1],["52 avenue Roger Dodin",35136," St-Jacques-de-la-Lande",48.079145,-1.712888,1],["18 all�e Henri Bergson",35136," St-Jacques-de-la-Lande",48.086851,-1.693663,1],["314 rue de Nantes",35136," St-Jacques-de-la-Lande",48.086894,-1.694962,1],["2 rue L�opold Sedar Senghor",35136," St-Jacques-de-la-Lande",48.077935,-1.714399,1],["2 rue L�opold Sedar Senghor",35136," St-Jacques-de-la-Lande",48.077935,-1.714399,1],["314 rue de Nantes",35136," St-Jacques-de-la-Lande",48.086894,-1.694962,1],["52 boulevard Jean Mermoz",35136," St-Jacques-de-la-Lande",48.095352,-1.696336,1],["10 rue du Pr� de la Fontaine",35136," St-Jacques-de-la-Lande",48.085366,-1.71299,1],["46 avenue Roger Dodin",35136," St-Jacques-de-la-Lande",48.081458,-1.712355,1],["46 mail L�on Blum",35136," St-Jacques-de-la-Lande",48.076347,-1.716046,1],["4 rue L�opold Sedar Senghor",35136," St-Jacques-de-la-Lande",48.077683,-1.714419,1],["17 all�e des Pins",35136," St-Jacques-de-la-Lande",48.076516,-1.717625,1],["7 rue du Haut Bois",35136," St-Jacques-de-la-Lande",48.078183,-1.714993,1],["7 rue du Haut Bois",35136," St-Jacques-de-la-Lande",48.078183,-1.714993,1],["7 rue du Haut Bois",35136," St-Jacques-de-la-Lande",48.078183,-1.714993,1],["37B rue Jules Vall�s",35136," St-Jacques-de-la-Lande",48.064188,-1.725642,1],["51 rue Jules vall�s",35136," St-Jacques-de-la-Lande",48.063418,-1.727351,1],["7 rue Henri Sellier",35136," St-Jacques-de-la-Lande",48.085682,-1.708792,1],["4 avenue Roger Dodin",35136," St-Jacques-de-la-Lande",48.089503,-1.706696,1],["30 mail L�on Blum",35136," St-Jacques-de-la-Lande",48.078928,-1.715833,1],["56 rue de la Pilate",35136," St-Jacques-de-la-Lande",48.092819,-1.694628,1],["38 rue Ren� cassin",35136," St-Jacques-de-la-Lande",48.061673,-1.725443,1],["80 C rue de la Pilate",35136," St-Jacques-de-la-Lande",48.092411,-1.696566,1],["54 boulevard Jean Mermoz",35136," St-Jacques-de-la-Lande",48.095645,-1.696342,1],["9 rue des 25 Fusill�s",35136," St-Jacques-de-la-Lande",48.090388,-1.694527,1],["64 rue de La Pilate",35136," St-Jacques-de-la-Lande",48.092324,-1.695034,1],["Le Haut Bois",35136," St-Jacques-de-la-Lande",48.077916,-1.714671,1],["11 rue du Haut Bois",35136," St-Jacques-de-la-Lande",48.077581,-1.715041,1],["19 bis rue du Pas Hubert",35136," St-Jacques-de-la-Lande",48.062447,-1.722615,1],["4 rue L�opold Sedar Senghor",35136," St-Jacques-de-la-Lande",48.077683,-1.714419,1],["16 rue Andr� Malraux",35136," St-Jacques-de-la-Lande",48.080929,-1.7136,1],["62 rue de la Pilate",35136," St-Jacques-de-la-Lande",48.092397,-1.694966,1],["3 rue du Haut Bois",35136," St-Jacques-de-la-Lande",48.078241,-1.714301,1],["7 all�e des Millepertuis",35136," St-Jacques-de-la-Lande",48.087147,-1.703563,1],["2 rue Marguerite Yourcenar",35136," St-Jacques-de-la-Lande",48.079692,-1.713171,1],["5 all�e Marcel Brossier",35136," St-Jacques-de-la-Lande",48.091545,-1.699229,1],["4 all�e Aim� C�saire",35136," St-Jacques-de-la-Lande",48.063561,-1.725673,1],["10 all�e Catherine Sauvage",35136," St-Jacques-de-la-Lande",48.077917,-1.716732,1],["10 all�e Henri Bergson",35136," St-Jacques-de-la-Lande",48.087515,-1.693539,1],["18 all�e Herg�",35136," St-Jacques-de-la-Lande",48.081531,-1.716707,1],["3 all�e des Nymph�as",35136," St-Jacques-de-la-Lande",48.079612,-1.718477,1],["5 rue Henri Sellier",35136," St-Jacques-de-la-Lande",48.085314,-1.709029,1],["7 rue du Haut Bois",35136," St-Jacques-de-la-Lande",48.078183,-1.714993,1],["4 cours Jean Jaur�s",35136," St-Jacques-de-la-Lande",48.086294,-1.710893,1],["86 rue du Temple de Blosne",35136," St-Jacques-de-la-Lande",48.087903,-1.700012,1],["1 rue Fernand Braudel",35136," St-Jacques-de-la-Lande",48.077259,-1.715388,1],["4 rue des Fr�res Lumi�re",35136," St-Jacques-de-la-Lande",48.093692,-1.705744,1],["16 rue Martin Luther King",35136," St-Jacques-de-la-Lande",48.065936,-1.722553,1],["2 rue Claude Nougaro",35136," St-Jacques-de-la-Lande",48.077055,-1.71629,1],["32 all�e Aim� C�saire",35136," St-Jacques-de-la-Lande",48.064077,-1.724934,1],["7 rue Andr� Malraux",35136," St-Jacques-de-la-Lande",48.080747,-1.714302,1],["2 rue Louis Guilloux",35136," St-Jacques-de-la-Lande",48.081327,-1.718488,1],["14 rue Marguerite Yourcenar",35136," St-Jacques-de-la-Lande",48.079756,-1.714925,1],["3 all�e Peyo",35136," St-Jacques-de-la-Lande",48.081237,-1.716766,1],["36 boulevard Jean Mermoz",35136," St-Jacques-de-la-Lande",48.096745,-1.693852,1],["5 rue Fernand Braudel",35136," St-Jacques-de-la-Lande",48.077233,-1.714648,1],["24 rue Andr� Malraux",35136," St-Jacques-de-la-Lande",48.081692,-1.715071,1],["26 rue Andr� Malraux",35136," St-Jacques-de-la-Lande",48.080991,-1.715083,1],["3 cours Fran�ois Mitterrand",35136," St-Jacques-de-la-Lande",48.079213,-1.713774,1],["11 rue Andr� Malraux",35136," St-Jacques-de-la-Lande",48.080777,-1.715055,1],["7 all�e Ren� Vilboux",35136," St-Jacques-de-la-Lande",48.090823,-1.697923,1],["41 rue Jules Vall�s",35136," St-Jacques-de-la-Lande",48.063934,-1.726216,1],["5 rue Fernand Braudel",35136," St-Jacques-de-la-Lande",48.077233,-1.714648,1],["3 rue Fernand Braudel",35136," St-Jacques-de-la-Lande",48.077244,-1.714977,1],["7 rue de la Pommerais",35136," St-Jacques-de-la-Lande",48.065957,-1.720292,1],["1 rue du Patis des Couasnes",35136," St-Jacques-de-la-Lande",48.083811,-1.730929,1],["58 boulevard Jean Mermoz",35136," St-Jacques-de-la-Lande",48.095316,-1.696818,1],["26 rue du Chavalier au Lion",35136," St-Jacques-de-la-Lande",48.077748,-1.709144,1],["35 rue du Manoir",35136," St-Jacques-de-la-Lande",48.064977,-1.717655,1],["10 rue Marguerite Yourcenar",35136," St-Jacques-de-la-Lande",48.079742,-1.714555,1],["15 rue des Munitionnettes",35136," St-Jacques-de-la-Lande",48.096852,-1.696307,1],["12 cours Camille Claudel",35136," St-Jacques-de-la-Lande",48.081703,-1.7139,1],["21 rue Lieutenant Le Corfec",35136," St-Jacques-de-la-Lande",48.087858,-1.695689,1],["4 villa Dahouet",35136," St-Jacques-de-la-Lande",48.079434,-1.717454,1],["44 avenue Roger Dodin",35136," St-Jacques-de-la-Lande",48.081666,-1.712221,1],["6 bis rue des Korrigans",35136," St-Jacques-de-la-Lande",48.081428,-1.710234,1],["49 rue de la Pilate",35136," St-Jacques-de-la-Lande",48.090806,-1.696747,1],["16 cours Camille Claudel",35136," St-Jacques-de-la-Lande",48.081273,-1.713949,1],["5 rue Fernand Braudel",35136," St-Jacques-de-la-Lande",48.077233,-1.714648,1],["72 rue du Manoir",35136," St-Jacques-de-la-Lande",48.065911,-1.719391,1],["4 rue Louis Guilloux",35136," St-Jacques-de-la-Lande",48.081404,-1.719214,1],["15 rue des 25 Fusill�s",35136," St-Jacques-de-la-Lande",48.090504,-1.695943,1],["8 rue Marguerite Yourcenar",35136," St-Jacques-de-la-Lande",48.079735,-1.714384,1],["60 avenue Roger Dodin",35136," St-Jacques-de-la-Lande",48.078021,-1.712942,1],["3 all�e de la Mare",35136," St-Jacques-de-la-Lande",48.078064,-1.718081,1],["12 all�e Aim� C�saire",35136," St-Jacques-de-la-Lande",48.063587,-1.725064,1],["36 mail L�on Blum",35136," St-Jacques-de-la-Lande",48.077941,-1.715969,1],["7 rue Henri Sellier",35136," St-Jacques-de-la-Lande",48.085682,-1.708792,1],["51 rue Jules vall�s",35136," St-Jacques-de-la-Lande",48.063418,-1.727351,1],["10 rue Marguerite Yourcenar",35136," St-Jacques-de-la-Lande",48.079742,-1.714555,1],["24 all�e Aim� C�saire",35136," St-Jacques-de-la-Lande",48.063854,-1.724915,1],["6 rue Simone de Beauvoir",35136," St-Jacques-de-la-Lande",48.079809,-1.716538,1],["54 boulevard Jean Mermoz",35136," St-Jacques-de-la-Lande",48.095645,-1.696342,1],["7 rue Andr� Malraux",35136," St-Jacques-de-la-Lande",48.080747,-1.714302,1],["5 rue Fernand Braudel",35136," St-Jacques-de-la-Lande",48.077233,-1.714648,1],["64 rue de La Pilate",35136," St-Jacques-de-la-Lande",48.092324,-1.695034,1],["39 rue Jules Vall�s",35136," St-Jacques-de-la-Lande",48.06403,-1.72599,1],["2 rue Ernest Renan",35136," St-Jacques-de-la-Lande",48.085473,-1.709822,1],["2 all�e Ella Fitzgerald",35136," St-Jacques-de-la-Lande",48.076922,-1.719145,1],["7 rue du Haut Bois",35136," St-Jacques-de-la-Lande",48.078183,-1.714993,1],["2 rue Perceval",35136," St-Jacques-de-la-Lande",48.076185,-1.711935,1],["7 rue Eug�ne Freyssinet",35136," St-Jacques-de-la-Lande",48.096517,-1.696071,1],["12 cours Camille Claudel",35136," St-Jacques-de-la-Lande",48.081703,-1.7139,1],["42 boulevard Jean Mermoz",35136," St-Jacques-de-la-Lande",48.096164,-1.694256,1],["14 rue Marguerite Yourcenar",35136," St-Jacques-de-la-Lande",48.079756,-1.714925,1],["13 all�e du Cormier",35136," St-Jacques-de-la-Lande",48.087341,-1.698319,1],["13 all�e du Cormier",35136," St-Jacques-de-la-Lande",48.087341,-1.698319,1],["3 cours Jean Jaur�s",35136," St-Jacques-de-la-Lande",48.086025,-1.710409,1],["11 rue Jean Pont",35136," St-Jacques-de-la-Lande",48.09076,-1.698756,1],["8 all�e Catherine Sauvage",35136," St-Jacques-de-la-Lande",48.078003,-1.716724,1],["6 rue Fran�ois Mitterrand",35136," St-Jacques-de-la-Lande",48.080657,-1.713999,1],["6 all�e Henri Bergson",35136," St-Jacques-de-la-Lande",48.087792,-1.693488,1],["18 all�e Aim� C�saire",35136," St-Jacques-de-la-Lande",48.063671,-1.724897,1],["254 rue de Nantes",35136," St-Jacques-de-la-Lande",48.093096,-1.691283,1],["5 rue Henri Sellier",35136," St-Jacques-de-la-Lande",48.085314,-1.709029,1],["4 rue des Fr�res Lumi�re",35136," St-Jacques-de-la-Lande",48.093692,-1.705744,1]],"fields":[{"name":"Rue ","type":"string","format":"","analyzerType":"STRING"},{"name":"Code postal","type":"integer","format":"","analyzerType":"INT"},{"name":"Ville","type":"string","format":"","analyzerType":"STRING"},{"name":"latitude","type":"real","format":"","analyzerType":"FLOAT"},{"name":"longitude","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Naissance(s):","type":"integer","format":"","analyzerType":"INT"}]}}];
+            const config = {"version":"v1","config":{"visState":{"filters":[],"layers":[{"id":"mokpv1","type":"cluster","config":{"dataId":"ohz8ovhw","label":"Naissances 2020","color":[23,184,190],"columns":{"lat":"latitude","lng":"longitude"},"isVisible":true,"visConfig":{"opacity":0.6,"clusterRadius":40,"colorRange":{"name":"ColorBrewer YlOrRd-6","type":"sequential","category":"ColorBrewer","colors":["#ffffb2","#fed976","#feb24c","#fd8d3c","#f03b20","#bd0026"]},"radiusRange":[0,50],"colorAggregation":"count"},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":null,"colorScale":"quantile"}}],"interactionConfig":{"tooltip":{"fieldsToShow":{"ohz8ovhw":[{"name":"Rue ","format":null},{"name":"Code postal","format":null},{"name":"Ville","format":null},{"name":"Naissance(s):","format":null}]},"compareMode":false,"compareType":"absolute","enabled":true},"brush":{"size":0.5,"enabled":false},"geocoder":{"enabled":false},"coordinate":{"enabled":false}},"layerBlending":"normal","splitMaps":[],"animationConfig":{"currentTime":null,"speed":1}},"mapState":{"bearing":0,"dragRotate":false,"latitude":48.07760435146236,"longitude":-1.717160249490965,"pitch":0,"zoom":16.214528357962244,"isSplit":false},"mapStyle":{"styleType":"light","topLayerGroups":{},"visibleLayerGroups":{"label":true,"road":true,"border":false,"building":true,"water":true,"land":true,"3d building":false},"threeDBuildingColor":[218.82023004728686,223.47597962276103,223.47597962276103],"mapStyles":{}}}};
+
+            const loadedData = keplerGl.KeplerGlSchema.load(
+              datasets,
+              config
+            );
+
+            store.dispatch(keplerGl.addDataToMap({
+              datasets: loadedData.datasets,
+              config: loadedData.config,
+              options: {
+                centerMap: false
+              }
+            }));
+          }(KeplerGl, store))
+        </script>
+      </body>
+    </html>
+  
